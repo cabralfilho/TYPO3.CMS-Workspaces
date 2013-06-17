@@ -81,29 +81,10 @@ class StagesService {
 	/**
 	 * Getter for current workspace id
 	 *
-	 * @return int current workspace id
+	 * @return integer Current workspace id
 	 */
 	public function getWorkspaceId() {
-		if ($this->workspaceId == NULL) {
-			$this->setWorkspaceId($GLOBALS['BE_USER']->workspace);
-		}
-		return $this->workspaceId;
-	}
-
-	/**
-	 * Setter for current workspace id
-	 *
-	 * @param int current workspace id
-	 */
-	private function setWorkspaceId($wsid) {
-		$this->workspaceId = $wsid;
-	}
-
-	/**
-	 * constructor for workspace library
-	 */
-	public function __construct() {
-		$this->setWorkspaceId($GLOBALS['BE_USER']->workspace);
+		return $this->getBackendUser()->workspace;
 	}
 
 	/**
@@ -285,6 +266,7 @@ class StagesService {
 	 * Check if given workspace has custom staging activated
 	 *
 	 * @return bool TRUE or FALSE
+	 * @deprecated Not used anymore in the TYPO3 CMS Core
 	 */
 	public function checkCustomStagingForWS() {
 		$workspaceRec = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord('sys_workspace', $this->getWorkspaceId());
@@ -398,8 +380,8 @@ class StagesService {
 	/**
 	 * Get next stage in process for given stage id
 	 *
-	 * @param int			stageid
-	 * @return int			id
+	 * @param integer $stageid Id of the stage to fetch the previous one for
+	 * @return integer The previous stage Id
 	 */
 	public function getPrevStage($stageid) {
 		if (!\TYPO3\CMS\Core\Utility\MathUtility::canBeInterpretedAsInteger($stageid)) {
@@ -769,6 +751,13 @@ class StagesService {
 			}
 			break;
 		}
+	}
+
+	/**
+	 * @return \TYPO3\CMS\Core\Authentication\BackendUserAuthentication
+	 */
+	protected function getBackendUser() {
+		return $GLOBALS['BE_USER'];
 	}
 
 }

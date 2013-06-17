@@ -39,6 +39,7 @@ $GLOBALS['LANG']->includeLLFile('EXT:lang/locallang_alt_doc.xml');
 \TYPO3\CMS\Backend\Utility\BackendUtility::lockRecords();
 
 // Make instance:
+/* @var $SOBE \TYPO3\CMS\Backend\Controller\EditDocumentController */
 $SOBE = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Backend\\Controller\\EditDocumentController');
 
 // Preprocessing, storing data if submitted to

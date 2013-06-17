@@ -110,10 +110,8 @@ class PreviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControl
 				\TYPO3\CMS\Backend\Utility\BackendUtility::setUpdateSignal('updatePageTree');
 			}
 		}
-		/** @var $uriBuilder \TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder */
-		$uriBuilder = $this->objectManager->create('TYPO3\\CMS\\Extbase\\Mvc\\Web\\Routing\\UriBuilder');
 		$wsSettingsPath = \TYPO3\CMS\Core\Utility\GeneralUtility::getIndpEnv('TYPO3_SITE_URL') . 'typo3/';
-		$wsSettingsUri = $uriBuilder->uriFor('singleIndex', array(), 'TYPO3\\CMS\\Workspaces\\Controller\\ReviewController', 'workspaces', 'web_workspacesworkspaces');
+		$wsSettingsUri = $this->getUriFor('singleIndex', array(), 'TYPO3\\CMS\\Workspaces\\Controller\\ReviewController');
 		$wsSettingsParams = '&tx_workspaces_web_workspacesworkspaces[controller]=Review';
 		$wsSettingsUrl = $wsSettingsPath . $wsSettingsUri . $wsSettingsParams;
 		$viewDomain = \TYPO3\CMS\Backend\Utility\BackendUtility::getViewDomain($this->pageId);
@@ -121,7 +119,7 @@ class PreviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControl
 		// @todo - handle new pages here
 		// branchpoints are not handled anymore because this feature is not supposed anymore
 		if (\TYPO3\CMS\Workspaces\Service\WorkspaceService::isNewPage($this->pageId)) {
-			$wsNewPageUri = $uriBuilder->uriFor('newPage', array(), 'TYPO3\\CMS\\Workspaces\\Controller\\PreviewController', 'workspaces', 'web_workspacesworkspaces');
+			$wsNewPageUri = $this->getUriFor('newPage', array(), 'TYPO3\\CMS\\Workspaces\\Controller\\PreviewController');
 			$wsNewPageParams = '&tx_workspaces_web_workspacesworkspaces[controller]=Preview';
 			$this->view->assign('liveUrl', $wsSettingsPath . $wsNewPageUri . $wsNewPageParams);
 		} else {

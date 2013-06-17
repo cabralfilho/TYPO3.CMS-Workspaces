@@ -105,16 +105,37 @@ class AbstractController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionControl
 	}
 
 	/**
+	 * @param NULL|string $actionName
+	 * @param array $controllerArguments
+	 * @param NULL|string $controllerName
+	 * @return string
+	 */
+	protected function getUriFor($actionName = NULL, array $controllerArguments = array(), $controllerName = NULL) {
+		/** @var $uriBuilder \TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder */
+		$uriBuilder = $this->objectManager->get('TYPO3\\CMS\\Extbase\\Mvc\\Web\\Routing\\UriBuilder');
+		$uri = $uriBuilder->reset()->uriFor($actionName, $controllerArguments, $controllerName, 'workspaces', 'web_workspacesworkspaces');
+		return $uri;
+	}
+
+	/**
 	 * Gets the selected language.
 	 *
 	 * @return string
 	 */
 	protected function getLanguageSelection() {
 		$language = 'all';
-		if (isset($GLOBALS['BE_USER']->uc['moduleData']['Workspaces'][$GLOBALS['BE_USER']->workspace]['language'])) {
-			$language = $GLOBALS['BE_USER']->uc['moduleData']['Workspaces'][$GLOBALS['BE_USER']->workspace]['language'];
+		$backendUser = $this->getBackendUser();
+		if (isset($backendUser->uc['moduleData']['Workspaces'][$backendUser->workspace]['language'])) {
+			$language = $backendUser->uc['moduleData']['Workspaces'][$backendUser->workspace]['language'];
 		}
 		return $language;
+	}
+
+	/**
+	 * @return \TYPO3\CMS\Core\Authentication\BackendUserAuthentication
+	 */
+	protected function getBackendUser() {
+		return $GLOBALS['BE_USER'];
 	}
 
 }

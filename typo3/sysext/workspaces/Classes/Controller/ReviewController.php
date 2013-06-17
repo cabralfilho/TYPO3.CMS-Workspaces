@@ -40,18 +40,19 @@ class ReviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControll
 	 * @return void
 	 */
 	public function indexAction() {
+		$backendUser = $this->getBackendUser();
 		$wsService = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Workspaces\\Service\\WorkspaceService');
-		$this->view->assign('showGrid', !($GLOBALS['BE_USER']->workspace === 0 && !$GLOBALS['BE_USER']->isAdmin()));
+		$this->view->assign('showGrid', !($backendUser->workspace === 0 && !$backendUser->isAdmin()));
 		$this->view->assign('showAllWorkspaceTab', TRUE);
 		$this->view->assign('pageUid', \TYPO3\CMS\Core\Utility\GeneralUtility::_GP('id'));
-		$this->view->assign('showLegend', !($GLOBALS['BE_USER']->workspace === 0 && !$GLOBALS['BE_USER']->isAdmin()));
+		$this->view->assign('showLegend', !($backendUser->workspace === 0 && !$backendUser->isAdmin()));
 		$wsList = $wsService->getAvailableWorkspaces();
-		$activeWorkspace = $GLOBALS['BE_USER']->workspace;
+		$activeWorkspace = $backendUser->workspace;
 		$performWorkspaceSwitch = FALSE;
 		// Only admins see multiple tabs, we decided to use it this
 		// way for usability reasons. Regular users might be confused
 		// by switching workspaces with the tabs in a module.
-		if (!$GLOBALS['BE_USER']->isAdmin()) {
+		if (!$backendUser->isAdmin()) {
 			$wsCur = array($activeWorkspace => TRUE);
 			$wsList = array_intersect_key($wsList, $wsCur);
 		} else {
@@ -59,7 +60,7 @@ class ReviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControll
 				$switchWs = (int) \TYPO3\CMS\Core\Utility\GeneralUtility::_GP('workspace');
 				if (in_array($switchWs, array_keys($wsList)) && $activeWorkspace != $switchWs) {
 					$activeWorkspace = $switchWs;
-					$GLOBALS['BE_USER']->setWorkspace($activeWorkspace);
+					$backendUser->setWorkspace($activeWorkspace);
 					$performWorkspaceSwitch = TRUE;
 					\TYPO3\CMS\Backend\Utility\BackendUtility::setUpdateSignal('updatePageTree');
 				} elseif ($switchWs == \TYPO3\CMS\Workspaces\Service\WorkspaceService::SELECT_ALL_WORKSPACES) {
@@ -67,13 +68,13 @@ class ReviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControll
 				}
 			}
 		}
-		$this->pageRenderer->addInlineSetting('Workspaces', 'isLiveWorkspace', $GLOBALS['BE_USER']->workspace == 0 ? TRUE : FALSE);
+		$this->pageRenderer->addInlineSetting('Workspaces', 'isLiveWorkspace', $backendUser->workspace == 0 ? TRUE : FALSE);
 		$this->view->assign('performWorkspaceSwitch', $performWorkspaceSwitch);
 		$this->view->assign('workspaceList', $wsList);
 		$this->view->assign('activeWorkspaceUid', $activeWorkspace);
 		$this->view->assign('activeWorkspaceTitle', \TYPO3\CMS\Workspaces\Service\WorkspaceService::getWorkspaceTitle($activeWorkspace));
 		$this->view->assign('showPreviewLink', $wsService->canCreatePreviewLink(\TYPO3\CMS\Core\Utility\GeneralUtility::_GP('id'), $activeWorkspace));
-		$GLOBALS['BE_USER']->setAndSaveSessionData('tx_workspace_activeWorkspace', $activeWorkspace);
+		$backendUser->setAndSaveSessionData('tx_workspace_activeWorkspace', $activeWorkspace);
 	}
 
 	/**
@@ -83,12 +84,13 @@ class ReviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControll
 	 * @return void
 	 */
 	public function fullIndexAction() {
+		$backendUser = $this->getBackendUser();
 		$wsService = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Workspaces\\Service\\WorkspaceService');
 
 		$wsList = $wsService->getAvailableWorkspaces();
 
-		if (!$GLOBALS['BE_USER']->isAdmin()) {
-			$activeWorkspace = $GLOBALS['BE_USER']->workspace;
+		if (!$backendUser->isAdmin()) {
+			$activeWorkspace = $backendUser->workspace;
 			$wsCur = array($activeWorkspace => TRUE);
 			$wsList = array_intersect_key($wsList, $wsCur);
 		}
@@ -100,7 +102,7 @@ class ReviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControll
 		$this->view->assign('workspaceList', $wsList);
 		$this->view->assign('activeWorkspaceUid', \TYPO3\CMS\Workspaces\Service\WorkspaceService::SELECT_ALL_WORKSPACES);
 		$this->view->assign('showPreviewLink', FALSE);
-		$GLOBALS['BE_USER']->setAndSaveSessionData('tx_workspace_activeWorkspace', \TYPO3\CMS\Workspaces\Service\WorkspaceService::SELECT_ALL_WORKSPACES);
+		$backendUser->setAndSaveSessionData('tx_workspace_activeWorkspace', \TYPO3\CMS\Workspaces\Service\WorkspaceService::SELECT_ALL_WORKSPACES);
 		// set flag for javascript
 		$this->pageRenderer->addInlineSetting('Workspaces', 'allView', '1');
 	}
@@ -114,7 +116,7 @@ class ReviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControll
 	public function singleIndexAction() {
 		$wsService = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Workspaces\\Service\\WorkspaceService');
 		$wsList = $wsService->getAvailableWorkspaces();
-		$activeWorkspace = $GLOBALS['BE_USER']->workspace;
+		$activeWorkspace = $this->getBackendUser()->workspace;
 		$wsCur = array($activeWorkspace => TRUE);
 		$wsList = array_intersect_key($wsList, $wsCur);
 		$this->view->assign('pageUid', \TYPO3\CMS\Core\Utility\GeneralUtility::_GP('id'));
@@ -143,7 +145,7 @@ class ReviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControll
 		}
 		$this->pageRenderer->loadExtJS();
 		$this->pageRenderer->enableExtJSQuickTips();
-		$states = $GLOBALS['BE_USER']->uc['moduleData']['Workspaces']['States'];
+		$states = $this->getBackendUser()->uc['moduleData']['Workspaces']['States'];
 		$this->pageRenderer->addInlineSetting('Workspaces', 'States', $states);
 		// Load  JavaScript:
 		$this->pageRenderer->addExtDirectCode(array(
