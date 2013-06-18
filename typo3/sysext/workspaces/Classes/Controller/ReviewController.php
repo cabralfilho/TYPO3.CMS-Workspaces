@@ -1,5 +1,6 @@
 <?php
 namespace TYPO3\CMS\Workspaces\Controller;
+use TYPO3\CMS\Workspaces\Service\WorkspaceService;
 
 /***************************************************************
  *  Copyright notice
@@ -41,7 +42,9 @@ class ReviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControll
 	 */
 	public function indexAction() {
 		$backendUser = $this->getBackendUser();
+		/** @var $wsService \TYPO3\CMS\Workspaces\Service\WorkspaceService */
 		$wsService = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Workspaces\\Service\\WorkspaceService');
+
 		$this->view->assign('showGrid', !($backendUser->workspace === 0 && !$backendUser->isAdmin()));
 		$this->view->assign('showAllWorkspaceTab', TRUE);
 		$this->view->assign('pageUid', \TYPO3\CMS\Core\Utility\GeneralUtility::_GP('id'));
@@ -56,8 +59,14 @@ class ReviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControll
 			$wsCur = array($activeWorkspace => TRUE);
 			$wsList = array_intersect_key($wsList, $wsCur);
 		} else {
-			if (strlen(\TYPO3\CMS\Core\Utility\GeneralUtility::_GP('workspace'))) {
+			$switchWs = NULL;
+			if ($this->request->hasArgument('workspace')) {
+				$switchWs = (int) $this->request->getArgument('workspace');
+			} elseif (strlen(\TYPO3\CMS\Core\Utility\GeneralUtility::_GP('workspace'))) {
 				$switchWs = (int) \TYPO3\CMS\Core\Utility\GeneralUtility::_GP('workspace');
+			}
+
+			if ($switchWs !== NULL) {
 				if (in_array($switchWs, array_keys($wsList)) && $activeWorkspace != $switchWs) {
 					$activeWorkspace = $switchWs;
 					$backendUser->setWorkspace($activeWorkspace);
@@ -68,11 +77,14 @@ class ReviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControll
 				}
 			}
 		}
+
 		$this->pageRenderer->addInlineSetting('Workspaces', 'isLiveWorkspace', $backendUser->workspace == 0 ? TRUE : FALSE);
+		$this->pageRenderer->addInlineSetting('Workspaces', 'workspaceTabs', $this->prepareWorkspaceTabs($wsList));
+		$this->pageRenderer->addInlineSetting('Workspaces', 'activeWorkspaceTab', 'workspace-' . $activeWorkspace);
 		$this->view->assign('performWorkspaceSwitch', $performWorkspaceSwitch);
 		$this->view->assign('workspaceList', $wsList);
 		$this->view->assign('activeWorkspaceUid', $activeWorkspace);
-		$this->view->assign('activeWorkspaceTitle', \TYPO3\CMS\Workspaces\Service\WorkspaceService::getWorkspaceTitle($activeWorkspace));
+		$this->view->assign('activeWorkspaceTitle', WorkspaceService::getWorkspaceTitle($activeWorkspace));
 		$this->view->assign('showPreviewLink', $wsService->canCreatePreviewLink(\TYPO3\CMS\Core\Utility\GeneralUtility::_GP('id'), $activeWorkspace));
 		$backendUser->setAndSaveSessionData('tx_workspace_activeWorkspace', $activeWorkspace);
 	}
@@ -85,6 +97,7 @@ class ReviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControll
 	 */
 	public function fullIndexAction() {
 		$backendUser = $this->getBackendUser();
+		/** @var $wsService \TYPO3\CMS\Workspaces\Service\WorkspaceService */
 		$wsService = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Workspaces\\Service\\WorkspaceService');
 
 		$wsList = $wsService->getAvailableWorkspaces();
@@ -100,11 +113,13 @@ class ReviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControll
 		$this->view->assign('showLegend', TRUE);
 		$this->view->assign('showAllWorkspaceTab', TRUE);
 		$this->view->assign('workspaceList', $wsList);
-		$this->view->assign('activeWorkspaceUid', \TYPO3\CMS\Workspaces\Service\WorkspaceService::SELECT_ALL_WORKSPACES);
+		$this->view->assign('activeWorkspaceUid', WorkspaceService::SELECT_ALL_WORKSPACES);
 		$this->view->assign('showPreviewLink', FALSE);
-		$backendUser->setAndSaveSessionData('tx_workspace_activeWorkspace', \TYPO3\CMS\Workspaces\Service\WorkspaceService::SELECT_ALL_WORKSPACES);
+		$backendUser->setAndSaveSessionData('tx_workspace_activeWorkspace', WorkspaceService::SELECT_ALL_WORKSPACES);
 		// set flag for javascript
 		$this->pageRenderer->addInlineSetting('Workspaces', 'allView', '1');
+		$this->pageRenderer->addInlineSetting('Workspaces', 'workspaceTabs', $this->prepareWorkspaceTabs($wsList));
+		$this->pageRenderer->addInlineSetting('Workspaces', 'activeWorkspaceTab', 'workspace-' . WorkspaceService::SELECT_ALL_WORKSPACES);
 	}
 
 	/**
@@ -135,7 +150,7 @@ class ReviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControll
 	protected function initializeAction() {
 		parent::initializeAction();
 		$this->template->setExtDirectStateProvider();
-		if (\TYPO3\CMS\Workspaces\Service\WorkspaceService::isOldStyleWorkspaceUsed()) {
+		if (WorkspaceService::isOldStyleWorkspaceUsed()) {
 			$flashMessage = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Core\\Messaging\\FlashMessage', $GLOBALS['LANG']->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang.xml:warning.oldStyleWorkspaceInUser'), '', \TYPO3\CMS\Core\Messaging\FlashMessage::WARNING);
 			/** @var $flashMessageService \TYPO3\CMS\Core\Messaging\FlashMessageService */
 			$flashMessageService = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Core\\Messaging\\FlashMessageService');
@@ -181,6 +196,29 @@ class ReviewController extends \TYPO3\CMS\Workspaces\Controller\AbstractControll
 		foreach ($jsFiles as $jsFile) {
 			$this->pageRenderer->addJsFile($resourcePath . $jsFile);
 		}
+	}
+
+	/**
+	 * @param array $workspaceList
+	 * @return array
+	 */
+	protected function prepareWorkspaceTabs(array $workspaceList) {
+		$tabs = array();
+		$tabs[] = array(
+			'title' => 'All workspaces',
+			'itemId' => 'workspace-' . WorkspaceService::SELECT_ALL_WORKSPACES,
+			'triggerUrl' => $this->getUriFor('fullIndex', array(), 'Review'),
+		);
+
+		foreach ($workspaceList as $workspaceId => $workspaceTitle) {
+			$tabs[] = array(
+				'title' => $workspaceTitle,
+				'itemId' => 'workspace-' . $workspaceId,
+				'triggerUrl' => $this->getUriFor('index', array('workspace' => $workspaceId), 'Review'),
+			);
+		}
+
+		return $tabs;
 	}
 
 }

@@ -28,7 +28,7 @@
 
 		<f:flashMessages renderMode="div" />
 
-		<f:render partial="navigation" arguments="{workspaceList: workspaceList, activeWorkspaceUid: activeWorkspaceUid, showAllWorkspaceTab:showAllWorkspaceTab}" />
+		<div id="workspacetabs"></div>
 		<div class="typo3-dyntabmenu-divs"><f:render section="main" /></div>
 		<f:if condition="{showLegend}"><f:render partial="legend" /></f:if>
 	</div>

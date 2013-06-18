@@ -1,10 +1,16 @@
 
+/*
 ul.x-tab-strip.x-tab-strip-top {
 	width: 100%;
 }
 ul.x-tab-strip.x-tab-strip-top li.last {
 	float: right;
 }
+*/
+#workspacetabs ul.x-tab-strip {
+	margin-bottom: 0;
+}
+
 span.item-state-modified {
 	color: #f78f25;
 }

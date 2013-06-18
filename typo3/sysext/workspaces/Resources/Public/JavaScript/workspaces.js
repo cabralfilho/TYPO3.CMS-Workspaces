@@ -75,6 +75,40 @@ Ext.onReady(function() {
 	TYPO3.Workspaces.MainStore.proxy = new Ext.data.DirectProxy({
 		directFn : TYPO3.Workspaces.ExtDirect.getWorkspaceInfos
 	});
+
+	TYPO3.Workspaces.WorkspaceTabs = new Ext.Panel({
+		renderTo: 'workspacetabs',
+		unstyled: true,
+		layout: 'fit',
+
+		items: [{
+			activeTab: TYPO3.settings.Workspaces.activeWorkspaceTab,
+			xtype: 'tabpanel',
+			unstyled: true,
+
+			enableTabScroll: true,
+			defaults: {
+				autoScroll: true
+			},
+
+			split: true,
+			useSplitTips: true,
+			autoScroll: true,
+			animScroll: true,
+			id: 'typo3-workspace-tabs',
+			border: false,
+
+			items: TYPO3.settings.Workspaces.workspaceTabs,
+			listeners: {
+				beforetabchange: function(panel, newTab, currentTab) {
+					if (typeof currentTab !== 'undefined' && newTab.triggerUrl) {
+						location.href = top.TYPO3.configuration.PATH_typo3 + newTab.triggerUrl;
+					}
+				}
+			}
+		}]
+	});
+
 	// fire grid
 	var WS = new TYPO3.Workspaces.App.init();
 
