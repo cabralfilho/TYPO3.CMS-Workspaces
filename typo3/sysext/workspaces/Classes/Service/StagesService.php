@@ -434,33 +434,32 @@ class StagesService {
 		$workspaceRec = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord('sys_workspace', $this->getWorkspaceId());
 		$recipientArray = array();
 		switch ($stageId) {
-		case self::STAGE_PUBLISH_EXECUTE_ID:
+			case self::STAGE_PUBLISH_EXECUTE_ID:
 
-		case self::STAGE_PUBLISH_ID:
-			if ($selectDefaultUserField == FALSE) {
-				$userList = $this->getResponsibleUser($workspaceRec['adminusers']);
-			} else {
-				$notification_default_user = $workspaceRec['publish_notification_defaults'];
-				$userList = $this->getResponsibleUser($notification_default_user);
-			}
-			break;
-		case self::STAGE_EDIT_ID:
-			if ($selectDefaultUserField == FALSE) {
-				$userList = $this->getResponsibleUser($workspaceRec['members']);
-			} else {
-				$notification_default_user = $workspaceRec['edit_notification_defaults'];
-				$userList = $this->getResponsibleUser($notification_default_user);
-			}
-			break;
-		default:
-			if ($selectDefaultUserField == FALSE) {
-				$responsible_persons = $this->getPropertyOfCurrentWorkspaceStage($stageId, 'responsible_persons');
-				$userList = $this->getResponsibleUser($responsible_persons);
-			} else {
-				$notification_default_user = $this->getPropertyOfCurrentWorkspaceStage($stageId, 'notification_defaults');
-				$userList = $this->getResponsibleUser($notification_default_user);
-			}
-			break;
+			case self::STAGE_PUBLISH_ID:
+				if (!$selectDefaultUserField) {
+					$userList = $this->getResponsibleUser($workspaceRec['adminusers'] . ',' . $workspaceRec['members']);
+				} else {
+					$notification_default_user = $workspaceRec['publish_notification_defaults'];
+					$userList = $this->getResponsibleUser($notification_default_user);
+				}
+				break;
+			case self::STAGE_EDIT_ID:
+				if (!$selectDefaultUserField) {
+					$userList = $this->getResponsibleUser($workspaceRec['adminusers'] . ',' . $workspaceRec['members']);
+				} else {
+					$notification_default_user = $workspaceRec['edit_notification_defaults'];
+					$userList = $this->getResponsibleUser($notification_default_user);
+				}
+				break;
+			default:
+				if (!$selectDefaultUserField) {
+					$responsible_persons = $this->getPropertyOfCurrentWorkspaceStage($stageId, 'responsible_persons');
+					$userList = $this->getResponsibleUser($responsible_persons);
+				} else {
+					$notification_default_user = $this->getPropertyOfCurrentWorkspaceStage($stageId, 'notification_defaults');
+					$userList = $this->getResponsibleUser($notification_default_user);
+				}
 		}
 		if (!empty($userList)) {
 			$userRecords = \TYPO3\CMS\Backend\Utility\BackendUtility::getUserNames('username, uid, email, realName', 'AND uid IN (' . $userList . ')');
@@ -480,22 +479,21 @@ class StagesService {
 	 * @return 	string	uid list of responsible be_users
 	 */
 	public function getResponsibleUser($stageRespValue) {
-		$stageValuesArray = array();
-		$stageValuesArray = \TYPO3\CMS\Core\Utility\GeneralUtility::trimExplode(',', $stageRespValue);
+		$stageValuesArray = \TYPO3\CMS\Core\Utility\GeneralUtility::trimExplode(',', $stageRespValue, TRUE);
 		$beuserUidArray = array();
 		$begroupUidArray = array();
-		$allBeUserArray = array();
-		$begroupUidList = array();
-		foreach ($stageValuesArray as $key => $uidvalue) {
+
+		foreach ($stageValuesArray as $uidvalue) {
 			if (strstr($uidvalue, 'be_users') !== FALSE) {
 				// Current value is a uid of a be_user record
 				$beuserUidArray[] = str_replace('be_users_', '', $uidvalue);
 			} elseif (strstr($uidvalue, 'be_groups') !== FALSE) {
 				$begroupUidArray[] = str_replace('be_groups_', '', $uidvalue);
-			} else {
-				$beuserUidArray[] = $uidvalue;
+			} elseif ((int) $uidvalue) {
+				$beuserUidArray[] = (int) $uidvalue;
 			}
 		}
+
 		if (!empty($begroupUidArray)) {
 			$allBeUserArray = \TYPO3\CMS\Backend\Utility\BackendUtility::getUserNames();
 			$begroupUidList = implode(',', $begroupUidArray);
@@ -509,6 +507,7 @@ class StagesService {
 				}
 			}
 		}
+
 		array_unique($beuserUidArray);
 		return implode(',', $beuserUidArray);
 	}
