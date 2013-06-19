@@ -193,10 +193,10 @@ class StagesService {
 				'uid' => self::STAGE_EDIT_ID,
 				'title' => $GLOBALS['LANG']->sL(($this->pathToLocallang . ':actionSendToStage')) . ' "' . $GLOBALS['LANG']->sL('LLL:EXT:lang/locallang_mod_user_ws.xml:stage_editing') . '"'
 			);
-			$workspaceRec = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord('sys_workspace', $this->getWorkspaceId());
+			$workspaceRec = $this->getWorkspaceRepository()->findById($this->getWorkspaceId());
 			if ($workspaceRec['custom_stages'] > 0) {
 				// Get all stage records for this workspace
-				$workspaceStageRecs = $GLOBALS['TYPO3_DB']->exec_SELECTgetRows('*', self::TABLE_STAGE, 'parentid=' . $this->getWorkspaceId() . ' AND parenttable=' . $GLOBALS['TYPO3_DB']->fullQuoteStr('sys_workspace', self::TABLE_STAGE) . ' AND deleted=0', '', 'sorting', '', 'uid');
+				$workspaceStageRecs = $this->getStageRepository()->findByWorkspace($this->getWorkspaceId());
 				foreach ($workspaceStageRecs as $stage) {
 					$stage['title'] = $GLOBALS['LANG']->sL(($this->pathToLocallang . ':actionSendToStage')) . ' "' . $stage['title'] . '"';
 					$stages[] = $stage;
@@ -263,7 +263,7 @@ class StagesService {
 	 * @deprecated Not used anymore in the TYPO3 CMS Core
 	 */
 	public function checkCustomStagingForWS() {
-		$workspaceRec = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord('sys_workspace', $this->getWorkspaceId());
+		$workspaceRec = $this->getWorkspaceRepository()->findById($this->getWorkspaceId());
 		return $workspaceRec['custom_stages'] > 0;
 	}
 
@@ -277,21 +277,21 @@ class StagesService {
 		global $LANG;
 		$stageTitle = '';
 		switch ($ver_stage) {
-		case self::STAGE_PUBLISH_EXECUTE_ID:
-			$stageTitle = $GLOBALS['LANG']->sL('LLL:EXT:lang/locallang_mod_user_ws.xml:stage_publish');
-			break;
-		case self::STAGE_PUBLISH_ID:
-			$stageTitle = $GLOBALS['LANG']->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang_mod.xml:stage_ready_to_publish');
-			break;
-		case self::STAGE_EDIT_ID:
-			$stageTitle = $GLOBALS['LANG']->sL('LLL:EXT:lang/locallang_mod_user_ws.xml:stage_editing');
-			break;
-		default:
-			$stageTitle = $this->getPropertyOfCurrentWorkspaceStage($ver_stage, 'title');
-			if ($stageTitle == NULL) {
-				$stageTitle = $GLOBALS['LANG']->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang.xml:error.getStageTitle.stageNotFound');
-			}
-			break;
+			case self::STAGE_PUBLISH_EXECUTE_ID:
+				$stageTitle = $GLOBALS['LANG']->sL('LLL:EXT:lang/locallang_mod_user_ws.xml:stage_publish');
+				break;
+			case self::STAGE_PUBLISH_ID:
+				$stageTitle = $GLOBALS['LANG']->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang_mod.xml:stage_ready_to_publish');
+				break;
+			case self::STAGE_EDIT_ID:
+				$stageTitle = $GLOBALS['LANG']->sL('LLL:EXT:lang/locallang_mod_user_ws.xml:stage_editing');
+				break;
+			default:
+				$stageTitle = $this->getPropertyOfCurrentWorkspaceStage($ver_stage, 'title');
+				if ($stageTitle == NULL) {
+					$stageTitle = $GLOBALS['LANG']->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang.xml:error.getStageTitle.stageNotFound');
+				}
+				break;
 		}
 		return $stageTitle;
 	}
@@ -303,7 +303,7 @@ class StagesService {
 	 * @return array
 	 */
 	public function getStageRecord($stageid) {
-		return \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord('sys_workspace_stage', $stageid);
+		return $this->getStageRepository()->findById($stageid);
 	}
 
 	/**
@@ -431,8 +431,9 @@ class StagesService {
 	 * @return 	array be_users with e-mail and name
 	 */
 	public function getResponsibleBeUser($stageId, $selectDefaultUserField = FALSE) {
-		$workspaceRec = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord('sys_workspace', $this->getWorkspaceId());
+		$workspaceRec = $this->getWorkspaceRepository()->findById($this->getWorkspaceId());
 		$recipientArray = array();
+
 		switch ($stageId) {
 			case self::STAGE_PUBLISH_EXECUTE_ID:
 
@@ -593,15 +594,11 @@ class StagesService {
 	 * @return string
 	 */
 	public function getPropertyOfCurrentWorkspaceStage($stageId, $property) {
-		$result = NULL;
 		if (!\TYPO3\CMS\Core\Utility\MathUtility::canBeInterpretedAsInteger($stageId)) {
 			throw new \InvalidArgumentException($GLOBALS['LANG']->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang.xml:error.stageId.integer'));
 		}
-		$workspaceStage = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord(self::TABLE_STAGE, $stageId);
-		if (is_array($workspaceStage) && isset($workspaceStage[$property])) {
-			$result = $workspaceStage[$property];
-		}
-		return $result;
+
+		return $this->getStageRepository()->getPropertyValue($stageId, $property);
 	}
 
 	/**
@@ -614,21 +611,21 @@ class StagesService {
 		$stagesOfWS = $this->getStagesForWS();
 		$countOfStages = count($stagesOfWS);
 		switch ($stageId) {
-		case self::STAGE_PUBLISH_ID:
-			$position = $countOfStages;
-			break;
-		case self::STAGE_EDIT_ID:
-			$position = 1;
-			break;
-		default:
-			$position = 1;
-			foreach ($stagesOfWS as $key => $stageInfoArray) {
-				$position++;
-				if ($stageId == $stageInfoArray['uid']) {
-					break;
+			case self::STAGE_PUBLISH_ID:
+				$position = $countOfStages;
+				break;
+			case self::STAGE_EDIT_ID:
+				$position = 1;
+				break;
+			default:
+				$position = 1;
+				foreach ($stagesOfWS as $stageInfoArray) {
+					$position++;
+					if ($stageId == $stageInfoArray['uid']) {
+						break;
+					}
 				}
-			}
-			break;
+				break;
 		}
 		return array('position' => $position, 'count' => $countOfStages);
 	}
@@ -719,31 +716,53 @@ class StagesService {
 	 * 1 = notify all responsible users (some users checked per default and you're not allowed to uncheck them)
 	 * 2 = notify all responsible users (all users are checked and nothing can be changed during stage change)
 	 *
-	 * @param integer stage id to return the notification mode for
-	 * @return integer
+	 * @param integer $stageId stage id to return the notification mode for
+	 * @return NULL|integer
+	 * @throws \InvalidArgumentException
 	 */
 	public function getNotificationMode($stageId) {
 		if (!\TYPO3\CMS\Core\Utility\MathUtility::canBeInterpretedAsInteger($stageId)) {
 			throw new \InvalidArgumentException($GLOBALS['LANG']->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang.xml:error.stageId.integer'));
 		}
-		switch ($stageId) {
-		case self::STAGE_PUBLISH_EXECUTE_ID:
 
-		case self::STAGE_PUBLISH_ID:
-			$workspaceRecord = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord('sys_workspace', $this->getWorkspaceId());
-			return $workspaceRecord['publish_notification_mode'];
-			break;
-		case self::STAGE_EDIT_ID:
-			$workspaceRecord = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord('sys_workspace', $this->getWorkspaceId());
-			return $workspaceRecord['edit_notification_mode'];
-			break;
-		default:
-			$workspaceStage = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord(self::TABLE_STAGE, $stageId);
-			if (is_array($workspaceStage) && isset($workspaceStage['notification_mode'])) {
-				return $workspaceStage['notification_mode'];
-			}
-			break;
+		$notificationMode = NULL;
+		$workspaceStage = $this->getStageRepository()->findById($stageId);
+
+		switch ($stageId) {
+			case self::STAGE_PUBLISH_EXECUTE_ID:
+			case self::STAGE_PUBLISH_ID:
+				$workspaceRecord = $this->getWorkspaceRepository()->findById($workspaceStage['parentid']);
+				$notificationMode = $workspaceRecord['publish_notification_mode'];
+				break;
+			case self::STAGE_EDIT_ID:
+				$workspaceRecord = $this->getWorkspaceRepository()->findById($workspaceStage['parentid']);
+				$notificationMode = $workspaceRecord['edit_notification_mode'];
+				break;
+			default:
+				if (is_array($workspaceStage) && isset($workspaceStage['notification_mode'])) {
+					$notificationMode = $workspaceStage['notification_mode'];
+				}
 		}
+
+		return $notificationMode;
+	}
+
+	/**
+	 * @return \TYPO3\CMS\Workspaces\Record\Repository\WorkspaceRepository
+	 */
+	protected function getWorkspaceRepository() {
+		return \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(
+			'TYPO3\\CMS\\Workspaces\\Record\\Repository\\WorkspaceRepository'
+		);
+	}
+
+	/**
+	 * @return \TYPO3\CMS\Workspaces\Record\Repository\StageRepository
+	 */
+	protected function getStageRepository() {
+		return \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(
+			'TYPO3\\CMS\\Workspaces\\Record\\Repository\\StageRepository'
+		);
 	}
 
 	/**

@@ -38,6 +38,11 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 	 */
 	protected $pageCache = array();
 
+	/**
+	 * @var array
+	 */
+	protected $previewLinks = array();
+
 	const TABLE_WORKSPACE = 'sys_workspace';
 	const SELECT_ALL_WORKSPACES = -98;
 	const LIVE_WORKSPACE_ID = 0;
@@ -54,12 +59,9 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 			$availableWorkspaces[self::LIVE_WORKSPACE_ID] = self::getWorkspaceTitle(self::LIVE_WORKSPACE_ID);
 		}
 		// add custom workspaces (selecting all, filtering by BE_USER check):
-		$customWorkspaces = $GLOBALS['TYPO3_DB']->exec_SELECTgetRows('uid, title, adminusers, members', 'sys_workspace', 'pid = 0' . \TYPO3\CMS\Backend\Utility\BackendUtility::deleteClause('sys_workspace'), '', 'title');
-		if (count($customWorkspaces)) {
-			foreach ($customWorkspaces as $workspace) {
-				if ($GLOBALS['BE_USER']->checkWorkspace($workspace)) {
-					$availableWorkspaces[$workspace['uid']] = $workspace['title'];
-				}
+		foreach (self::getWorkspaceRepository()->findAll('title') as $workspace) {
+			if ($GLOBALS['BE_USER']->checkWorkspace($workspace)) {
+				$availableWorkspaces[$workspace['uid']] = $workspace['title'];
 			}
 		}
 		return $availableWorkspaces;
@@ -96,19 +98,15 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 	 * @return string
 	 */
 	static public function getWorkspaceTitle($wsId) {
-		$title = FALSE;
 		switch ($wsId) {
-		case self::LIVE_WORKSPACE_ID:
-			$title = $GLOBALS['LANG']->sL('LLL:EXT:lang/locallang_misc.xml:shortcut_onlineWS');
-			break;
-		default:
-			$labelField = $GLOBALS['TCA']['sys_workspace']['ctrl']['label'];
-			$wsRecord = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord('sys_workspace', $wsId, 'uid,' . $labelField);
-			if (is_array($wsRecord)) {
-				$title = $wsRecord[$labelField];
+			case self::LIVE_WORKSPACE_ID:
+				$title = $GLOBALS['LANG']->sL('LLL:EXT:lang/locallang_misc.xml:shortcut_onlineWS');
+				break;
+			default:
+				$labelField = $GLOBALS['TCA'][self::TABLE_WORKSPACE]['ctrl']['label'];
+				$title = self::getWorkspaceService()->getWorkspaceRepository()->getPropertyValue($wsId, $labelField);
 			}
-		}
-		if ($title === FALSE) {
+		if ($title === NULL) {
 			throw new \InvalidArgumentException('No such workspace defined');
 		}
 		return $title;
@@ -130,7 +128,7 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 			// Define stage to select:
 			$stage = -99;
 			if ($wsid > 0) {
-				$workspaceRec = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord('sys_workspace', $wsid);
+				$workspaceRec = self::getWorkspaceService()->getWorkspaceRepository()->findById($wsid);
 				if ($workspaceRec['publish_access'] & 1) {
 					$stage = \TYPO3\CMS\Workspaces\Service\StagesService::STAGE_PUBLISH_ID;
 				}
@@ -513,7 +511,9 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 		$viewUrl = '';
 
 		if ($table == 'pages') {
-			$viewUrl = \TYPO3\CMS\Backend\Utility\BackendUtility::viewOnClick(\TYPO3\CMS\Backend\Utility\BackendUtility::getLiveVersionIdOfRecord('pages', $uid));
+			$liveRecord = \TYPO3\CMS\Backend\Utility\BackendUtility::getLiveVersionOfRecord('pages', $uid);
+			$additionalParameters = '&tx_workspaces_web_workspacesworkspaces[previewWS]=' . $versionRecord['t3ver_wsid'];
+			$viewUrl = self::getWorkspaceService()->getPreviewLink($liveRecord['uid'], $additionalParameters);
 		} elseif ($table === 'pages_language_overlay' || $table === 'tt_content') {
 			if ($liveRecord === NULL) {
 				$liveRecord = \TYPO3\CMS\Backend\Utility\BackendUtility::getLiveVersionOfRecord($table, $uid);
@@ -529,7 +529,7 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 				$additionalParameters .= '&L=' . $versionRecord[$languageField];
 			}
 
-			$viewUrl = \TYPO3\CMS\Backend\Utility\BackendUtility::viewOnClick($liveRecord['pid'], '', '', '', '', $additionalParameters);
+			$viewUrl = self::getWorkspaceService()->getPreviewLink($liveRecord['pid'], $additionalParameters);
 		} else {
 			if (isset($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['workspaces']['viewSingleRecord'])) {
 				$_params = array(
@@ -546,6 +546,23 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 		}
 
 		return $viewUrl;
+	}
+
+	/**
+	 * @param integer $pageId
+	 * @param string $additionalParameters
+	 * @return string
+	 */
+	protected function getPreviewLink($pageId, $additionalParameters = '') {
+		$identifier = $pageId . '::' . $additionalParameters;
+
+		if (!isset($this->previewLinks[$identifier])) {
+			$this->previewLinks[$identifier] = \TYPO3\CMS\Backend\Utility\BackendUtility::viewOnClick(
+				$pageId, '', '', '', '', $additionalParameters
+			);
+		}
+
+		return $this->previewLinks[$identifier];
 	}
 
 	/**
@@ -634,6 +651,24 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 			}
 		}
 		return $this->pageCache[$uid];
+	}
+
+	/**
+	 * @return \TYPO3\CMS\Workspaces\Record\Repository\WorkspaceRepository
+	 */
+	protected function getWorkspaceRepository() {
+		return \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(
+			'TYPO3\\CMS\\Workspaces\\Record\\Repository\\WorkspaceRepository'
+		);
+	}
+
+	/**
+	 * @return \TYPO3\CMS\Workspaces\Service\WorkspaceService
+	 */
+	static protected function getWorkspaceService() {
+		return \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(
+			'TYPO3\\CMS\\Workspaces\\Service\\WorkspaceService'
+		);
 	}
 
 }
