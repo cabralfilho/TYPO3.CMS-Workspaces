@@ -118,6 +118,9 @@ class ActionHandler extends \TYPO3\CMS\Workspaces\ExtDirect\AbstractHandler {
 	 * @return void
 	 */
 	public function saveColumnModel($model) {
+		/** @var $workspaceService \TYPO3\CMS\Workspaces\Service\WorkspaceService */
+		$workspaceService = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Workspaces\\Service\\WorkspaceService');
+
 		$data = array();
 		foreach ($model as $column) {
 			$data[$column->column] = array(
@@ -125,13 +128,16 @@ class ActionHandler extends \TYPO3\CMS\Workspaces\ExtDirect\AbstractHandler {
 				'hidden' => $column->hidden
 			);
 		}
-		$GLOBALS['BE_USER']->uc['moduleData']['Workspaces'][$GLOBALS['BE_USER']->workspace]['columns'] = $data;
+		$GLOBALS['BE_USER']->uc['moduleData']['Workspaces'][$workspaceService->getCurrentWorkspace()]['columns'] = $data;
 		$GLOBALS['BE_USER']->writeUC();
 	}
 
 	public function loadColumnModel() {
-		if (is_array($GLOBALS['BE_USER']->uc['moduleData']['Workspaces'][$GLOBALS['BE_USER']->workspace]['columns'])) {
-			return $GLOBALS['BE_USER']->uc['moduleData']['Workspaces'][$GLOBALS['BE_USER']->workspace]['columns'];
+		/** @var $workspaceService \TYPO3\CMS\Workspaces\Service\WorkspaceService */
+		$workspaceService = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Workspaces\\Service\\WorkspaceService');
+
+		if (is_array($GLOBALS['BE_USER']->uc['moduleData']['Workspaces'][$workspaceService->getCurrentWorkspace()]['columns'])) {
+			return $GLOBALS['BE_USER']->uc['moduleData']['Workspaces'][$workspaceService->getCurrentWorkspace()]['columns'];
 		} else {
 			return array();
 		}
@@ -144,10 +150,13 @@ class ActionHandler extends \TYPO3\CMS\Workspaces\ExtDirect\AbstractHandler {
 	 * @return void
 	 */
 	public function saveLanguageSelection($language) {
+		/** @var $workspaceService \TYPO3\CMS\Workspaces\Service\WorkspaceService */
+		$workspaceService = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Workspaces\\Service\\WorkspaceService');
+
 		if (\TYPO3\CMS\Core\Utility\MathUtility::canBeInterpretedAsInteger($language) === FALSE && $language !== 'all') {
 			$language = 'all';
 		}
-		$GLOBALS['BE_USER']->uc['moduleData']['Workspaces'][$GLOBALS['BE_USER']->workspace]['language'] = $language;
+		$GLOBALS['BE_USER']->uc['moduleData']['Workspaces'][$workspaceService->getCurrentWorkspace()]['language'] = $language;
 		$GLOBALS['BE_USER']->writeUC();
 	}
 

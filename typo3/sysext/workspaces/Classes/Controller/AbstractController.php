@@ -123,10 +123,13 @@ class AbstractController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionControl
 	 * @return string
 	 */
 	protected function getLanguageSelection() {
+		/** @var $workspaceService \TYPO3\CMS\Workspaces\Service\WorkspaceService */
+		$workspaceService = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Workspaces\\Service\\WorkspaceService');
+
 		$language = 'all';
 		$backendUser = $this->getBackendUser();
-		if (isset($backendUser->uc['moduleData']['Workspaces'][$backendUser->workspace]['language'])) {
-			$language = $backendUser->uc['moduleData']['Workspaces'][$backendUser->workspace]['language'];
+		if (isset($backendUser->uc['moduleData']['Workspaces'][$workspaceService->getCurrentWorkspace()]['language'])) {
+			$language = $backendUser->uc['moduleData']['Workspaces'][$workspaceService->getCurrentWorkspace()]['language'];
 		}
 		return $language;
 	}

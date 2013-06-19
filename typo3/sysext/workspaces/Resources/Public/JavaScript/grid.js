@@ -125,7 +125,7 @@ TYPO3.Workspaces.WorkspaceGrid = new Ext.grid.GridPanel({
 					TYPO3.Workspaces.Configuration.Integrity,
 					{id: 'uid', dataIndex : 'uid', width: 40, sortable: true, header : TYPO3.l10n.localize('column.uid'), hidden: true, filterable : true },
 					{id: 't3ver_oid', dataIndex : 't3ver_oid', width: 40, sortable: true, header : TYPO3.l10n.localize('column.oid'), hidden: true, filterable : true },
-					{id: 'workspace_Title', dataIndex : 'workspace_Title', width: 120, sortable: true, header : TYPO3.l10n.localize('column.workspaceName'), hidden: true, filter : {type : 'string'}},
+					{id: 'workspace_Title', dataIndex : 'workspace_Title', width: 120, sortable: true, header : TYPO3.l10n.localize('column.workspaceName'), hidden: (!TYPO3.settings.Workspaces.allView), filter : {type : 'string'}},
 					TYPO3.Workspaces.Configuration.WsPath,
 					TYPO3.Workspaces.Configuration.Language,
 					TYPO3.Workspaces.Configuration.LivePath,
