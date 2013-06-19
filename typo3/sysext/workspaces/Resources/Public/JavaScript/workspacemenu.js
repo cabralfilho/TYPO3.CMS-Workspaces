@@ -39,9 +39,19 @@ var WorkspaceMenu = Class.create({
 	initialize: function() {
 
 		Ext.onReady(function() {
+			Ext.get('workspace-selector-menu').select('ul').first().setStyle(
+				'max-height',
+				(top.TYPO3.Backend.getHeight() - 50) + 'px'
+			);
 			Event.observe(
 				window, 'resize',
-				function() { TYPO3BackendToolbarManager.positionMenu('workspace-selector-menu'); }
+				function() {
+					TYPO3BackendToolbarManager.positionMenu('workspace-selector-menu');
+					Ext.get('workspace-selector-menu').select('ul').first().setStyle(
+						'max-height',
+						(top.TYPO3.Backend.getHeight() - 50) + 'px'
+					);
+				}
 			);
 			if (top.TYPO3.configuration.inWorkspace == 1) {
 				Ext.getBody().addClass('typo3-in-workspace');
