@@ -59,6 +59,11 @@ class Commands {
 	static protected $titleLength = NULL;
 
 	/**
+	 * @var \TYPO3\CMS\Backend\Tree\Pagetree\PageRepository
+	 */
+	static protected $pageRepository;
+
+	/**
 	 * Visibly the page
 	 *
 	 * @param \TYPO3\CMS\Backend\Tree\Pagetree\PagetreeNode $node
@@ -165,7 +170,7 @@ class Commands {
 		$targetId = intval($targetId);
 
 		// Use page TsConfig as default page initialization
-		$pageTs = \TYPO3\CMS\Backend\Utility\BackendUtility::getPagesTSconfig($pid);
+		$pageTs = \TYPO3\CMS\Backend\Utility\BackendUtility::getPagesTSconfig($pid, self::getPageRepository()->getRootLine($pid, TRUE));
 		if (array_key_exists('TCAdefaults.', $pageTs) && array_key_exists('pages.', $pageTs['TCAdefaults.'])) {
 			$data['pages'][$placeholder] = $pageTs['TCAdefaults.']['pages.'];
 		} else {
@@ -250,7 +255,7 @@ class Commands {
 		if (self::$useNavTitle === NULL) {
 			self::$useNavTitle = $GLOBALS['BE_USER']->getTSConfigVal('options.pageTree.showNavTitle');
 		}
-		$rootline = array_reverse(\TYPO3\CMS\Backend\Utility\BackendUtility::BEgetRootLine($uid));
+		$rootline = array_reverse(self::getPageRepository()->getRootLine($uid));
 		array_shift($rootline);
 		$path = array();
 		foreach ($rootline as $rootlineElement) {
@@ -272,7 +277,7 @@ class Commands {
 	 * @return array
 	 */
 	static public function getNodeRecord($nodeId, $unsetMovePointers = TRUE) {
-		$record = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecordWSOL('pages', $nodeId, '*', '', TRUE, $unsetMovePointers);
+		$record = self::getPageRepository()->getWorkspaceOverlay($nodeId, $unsetMovePointers);
 		return $record;
 	}
 
@@ -283,9 +288,16 @@ class Commands {
 	 * @return string
 	 */
 	static public function getDomainName($uid) {
-		$whereClause = 'pid=' . intval($uid) . \TYPO3\CMS\Backend\Utility\BackendUtility::deleteClause('sys_domain') . \TYPO3\CMS\Backend\Utility\BackendUtility::BEenableFields('sys_domain');
-		$domain = $GLOBALS['TYPO3_DB']->exec_SELECTgetSingleRow('domainName', 'sys_domain', $whereClause, '', 'sorting');
-		return is_array($domain) ? htmlspecialchars($domain['domainName']) : '';
+		$domainName = '';
+
+		$domains = self::getDomainRepository()->findByPageId($uid);
+		if (count($domains) > 0) {
+			reset($domains);
+			$domain = current($domains);
+			$domainName = $domain['domainName'];
+		}
+
+		return $domainName;
 	}
 
 	/**
@@ -364,6 +376,29 @@ class Commands {
 			$subNode->setDraggable(FALSE);
 		}
 		return $subNode;
+	}
+
+	/**
+	 * @return \TYPO3\CMS\Backend\Tree\Pagetree\DomainRepository
+	 */
+	static protected function getDomainRepository() {
+		return GeneralUtility::makeInstance(
+			'TYPO3\\CMS\\Backend\\Tree\\Pagetree\\DomainRepository'
+		);
+	}
+
+	/**
+	 * @return \TYPO3\CMS\Backend\Tree\Pagetree\PageRepository
+	 */
+	static protected function getPageRepository() {
+		if (!isset(self::$pageRepository)) {
+			self::$pageRepository = GeneralUtility::makeInstance(
+				'TYPO3\\CMS\\Backend\\Tree\\Pagetree\\PageRepository'
+			);
+			self::$pageRepository->setUsePagePermissions(FALSE);
+		}
+
+		return self::$pageRepository;
 	}
 
 }
