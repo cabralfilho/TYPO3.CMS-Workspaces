@@ -74,11 +74,6 @@ class DataProvider extends \TYPO3\CMS\Backend\Tree\AbstractTreeDataProvider {
 	protected $processCollectionHookObjects = array();
 
 	/**
-	 * @var \TYPO3\CMS\Backend\Tree\Pagetree\PageRepository
-	 */
-	protected $pageRepository;
-
-	/**
 	 * Constructor
 	 *
 	 * @param integer $nodeLimit (optional)
@@ -136,8 +131,8 @@ class DataProvider extends \TYPO3\CMS\Backend\Tree\AbstractTreeDataProvider {
 		// and in case of a virtual root return the mountpoints as virtual "subpages"
 		if (intval($node->getId()) === 0) {
 			// check no temporary mountpoint is used
-			if (!intval($this->getBackendUser()->uc['pageTree_temporaryMountPoint'])) {
-				$mountPoints = array_map('intval', $this->getBackendUser()->returnWebmounts());
+			if (!intval($GLOBALS['BE_USER']->uc['pageTree_temporaryMountPoint'])) {
+				$mountPoints = array_map('intval', $GLOBALS['BE_USER']->returnWebmounts());
 				$mountPoints = array_unique($mountPoints);
 				if (!in_array(0, $mountPoints)) {
 					// using a virtual root node
@@ -195,7 +190,7 @@ class DataProvider extends \TYPO3\CMS\Backend\Tree\AbstractTreeDataProvider {
 	 * @return array
 	 */
 	protected function getRecordWithWorkspaceOverlay($uid, $unsetMovePointers = FALSE) {
-		return $this->getPageRepository()->getWorkspaceOverlay($uid, $unsetMovePointers);
+		return BackendUtility::getRecordWSOL('pages', $uid, '*', '', TRUE, $unsetMovePointers);
 	}
 
 	/**
@@ -433,62 +428,6 @@ class DataProvider extends \TYPO3\CMS\Backend\Tree\AbstractTreeDataProvider {
 	}
 
 	/**
-	 * Returns the where clause for fetching pages
-	 *
-	 * @param integer $id
-	 * @param string $searchFilter
-	 * @return array
-	 */
-	protected function getWhereConstraints($id, $searchFilter = '') {
-		$constraints = array(
-			array(
-				array(
-					array('t3ver_state', '<=', '0'),
-					array('t3ver_wsid', '==', (int) $this->getBackendUser()->workspace),
-				),
-				PageRepository::OPERATOR_Constraints,
-				PageRepository::CONSTRAINTS_Or
-			),
-		);
-
-		if (is_numeric($id) && $id >= 0) {
-			$constraints[] = array('pid', '==', (int) $id);
-		}
-
-		if ($searchFilter !== '') {
-			$searchConstraint = array();
-
-			if (is_numeric($searchFilter) && $searchFilter > 0) {
-				$searchConstraint[] = array('uid', '==', (int) $searchFilter);
-			}
-
-			$useNavTitle = $this->getBackendUser()->getTSConfigVal('options.pageTree.showNavTitle');
-
-			if ($useNavTitle) {
-				$searchConstraint[] = array('nav_title', PageRepository::OPERATOR_Contains, $searchFilter);
-				$searchConstraint[] = array(
-					array(
-						array('nav_title', '==', ''),
-						array('title', PageRepository::OPERATOR_Contains, $searchFilter),
-					),
-					PageRepository::OPERATOR_Constraints,
-					PageRepository::CONSTRAINTS_And
-				);
-			} else {
-				$searchConstraint[] = array('title', PageRepository::OPERATOR_Contains, $searchFilter);
-			}
-
-			$constraints[] = array(
-				$searchConstraint,
-				PageRepository::OPERATOR_Constraints,
-				PageRepository::CONSTRAINTS_Or
-			);
-		}
-
-		return $constraints;
-	}
-
-	/**
 	 * Returns all sub-pages of a given id
 	 *
 	 * @param integer $id
@@ -496,9 +435,8 @@ class DataProvider extends \TYPO3\CMS\Backend\Tree\AbstractTreeDataProvider {
 	 * @return array
 	 */
 	protected function getSubpages($id, $searchFilter = '') {
-		return $this->getPageRepository()->findByConstraints(
-			$this->getWhereConstraints($id, $searchFilter)
-		);
+		$where = $this->getWhereClause($id, $searchFilter);
+		return $GLOBALS['TYPO3_DB']->exec_SELECTgetRows('uid', 'pages', $where, '', 'sorting', '', 'uid');
 	}
 
 	/**
@@ -508,32 +446,13 @@ class DataProvider extends \TYPO3\CMS\Backend\Tree\AbstractTreeDataProvider {
 	 * @return boolean
 	 */
 	protected function hasNodeSubPages($id) {
-		$subPages = $this->getPageRepository()->findByConstraints(
-			$this->getWhereConstraints($id)
-		);
-
-		return (count($subPages) > 0);
-	}
-
-	/**
-	 * @return \TYPO3\CMS\Backend\Tree\Pagetree\PageRepository
-	 */
-	protected function getPageRepository() {
-		if (!isset($this->pageRepository)) {
-			$this->pageRepository = GeneralUtility::makeInstance(
-				'TYPO3\\CMS\\Backend\\Tree\\Pagetree\\PageRepository'
-			);
-			$this->pageRepository->setUsePagePermissions(TRUE);
+		$where = $this->getWhereClause($id);
+		$subpage = $GLOBALS['TYPO3_DB']->exec_SELECTgetSingleRow('uid', 'pages', $where, '', 'sorting', '', 'uid');
+		$returnValue = TRUE;
+		if (!$subpage['uid']) {
+			$returnValue = FALSE;
 		}
-
-		return $this->pageRepository;
-	}
-
-	/**
-	 * @return \TYPO3\CMS\Core\Authentication\BackendUserAuthentication
-	 */
-	protected function getBackendUser() {
-		return $GLOBALS['BE_USER'];
+		return $returnValue;
 	}
 
 }
