@@ -289,9 +289,16 @@ class Commands {
 	 * @return string
 	 */
 	static public function getDomainName($uid) {
-		$whereClause = 'pid=' . intval($uid) . BackendUtility::deleteClause('sys_domain') . BackendUtility::BEenableFields('sys_domain');
-		$domain = $GLOBALS['TYPO3_DB']->exec_SELECTgetSingleRow('domainName', 'sys_domain', $whereClause, '', 'sorting');
-		return is_array($domain) ? htmlspecialchars($domain['domainName']) : '';
+		$domainName = '';
+
+		$domains = self::getDomainRepository()->findByPageId($uid);
+		if (count($domains) > 0) {
+			reset($domains);
+			$domain = current($domains);
+			$domainName = $domain['domainName'];
+		}
+
+		return $domainName;
 	}
 
 	/**
@@ -370,6 +377,15 @@ class Commands {
 			$subNode->setDraggable(FALSE);
 		}
 		return $subNode;
+	}
+
+	/**
+	 * @return \TYPO3\CMS\Backend\Tree\Pagetree\DomainRepository
+	 */
+	static protected function getDomainRepository() {
+		return GeneralUtility::makeInstance(
+			'TYPO3\\CMS\\Backend\\Tree\\Pagetree\\DomainRepository'
+		);
 	}
 
 }
