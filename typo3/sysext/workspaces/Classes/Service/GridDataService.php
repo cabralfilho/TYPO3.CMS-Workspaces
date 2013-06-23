@@ -130,9 +130,15 @@ class GridDataService {
 				$hiddenField = $this->getTcaEnableColumnsFieldName($table, 'disabled');
 				$isRecordTypeAllowedToModify = $GLOBALS['BE_USER']->check('tables_modify', $table);
 
+				if ($table !== 'pages') {
+					$recordRepository = $this->getRecordService()->getRepository($table);
+				} else {
+					$recordRepository = $this->getPageRepository();
+				}
+
 				foreach ($records as $record) {
-					$origRecord = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord($table, $record['t3ver_oid']);
-					$versionRecord = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord($table, $record['uid']);
+					$origRecord = $recordRepository->findById($record['t3ver_oid']);
+					$versionRecord = $recordRepository->findById($record['uid']);
 					$combinedRecord = \TYPO3\CMS\Workspaces\Domain\Model\CombinedRecord::createFromArrays($table, $origRecord, $versionRecord);
 					$this->getIntegrityService()->checkElement($combinedRecord);
 
@@ -154,8 +160,8 @@ class GridDataService {
 					$versionArray['label_nextStage'] = htmlspecialchars($stagesObj->getStageTitle($tempStage['uid']));
 					$tempStage = $stagesObj->getPrevStage($versionRecord['t3ver_stage']);
 					$versionArray['label_prevStage'] = htmlspecialchars($stagesObj->getStageTitle($tempStage['uid']));
-					$versionArray['path_Live'] = htmlspecialchars(\TYPO3\CMS\Backend\Utility\BackendUtility::getRecordPath($record['livepid'], '', 999));
-					$versionArray['path_Workspace'] = htmlspecialchars(\TYPO3\CMS\Backend\Utility\BackendUtility::getRecordPath($record['wspid'], '', 999));
+					$versionArray['path_Live'] = htmlspecialchars($this->getPageService()->getPagePath($record['livepid'], 999));
+					$versionArray['path_Workspace'] = htmlspecialchars($this->getPageService()->getPagePath($record['wspid'], 999));
 					$versionArray['workspace_Title'] = htmlspecialchars(\TYPO3\CMS\Workspaces\Service\WorkspaceService::getWorkspaceTitle($versionRecord['t3ver_wsid']));
 					$versionArray['workspace_Tstamp'] = $versionRecord['tstamp'];
 					$versionArray['workspace_Formated_Tstamp'] = \TYPO3\CMS\Backend\Utility\BackendUtility::datetime($versionRecord['tstamp']);
@@ -186,10 +192,13 @@ class GridDataService {
 					$versionArray['allowedAction_edit'] = $isRecordTypeAllowedToModify && !$isDeletedPage;
 					$versionArray['allowedAction_editVersionedPage'] = $isRecordTypeAllowedToModify && !$isDeletedPage;
 					$versionArray['state_Workspace'] = $recordState;
+
 					if ($filterTxt == '' || $this->isFilterTextInVisibleColumns($filterTxt, $versionArray)) {
 						$this->dataArray[] = $versionArray;
 					}
 				}
+
+				$this->getRecordService()->destroyRepository($table);
 			}
 			// Suggested slot method:
 			// methodName(\TYPO3\CMS\Workspaces\Service\GridDataService $gridData, array &$dataArray, array $versions)
@@ -531,6 +540,33 @@ class GridDataService {
 			$this->integrityService = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Workspaces\\Service\\IntegrityService');
 		}
 		return $this->integrityService;
+	}
+
+	/**
+	 * @return \TYPO3\CMS\Workspaces\Service\PageService
+	 */
+	protected function getPageService() {
+		return \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(
+			'TYPO3\\CMS\\Workspaces\\Service\\PageService'
+		);
+	}
+
+	/**
+	 * @return \TYPO3\CMS\Workspaces\Service\RecordService
+	 */
+	protected function getRecordService() {
+		return \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(
+			'TYPO3\\CMS\\Workspaces\\Service\\RecordService'
+		);
+	}
+
+	/**
+	 * @return \TYPO3\CMS\Workspaces\Record\Repository\PageRepository
+	 */
+	protected function getPageRepository() {
+		return \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(
+			'TYPO3\\CMS\\Workspaces\\Record\\Repository\\PageRepository'
+		);
 	}
 
 	/**

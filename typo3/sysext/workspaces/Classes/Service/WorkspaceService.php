@@ -224,10 +224,18 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 				}
 				$recs = $this->filterPermittedElements($recs, $table);
 				if (count($recs)) {
+					if ($table !== 'pages') {
+						$recordRepository = $this->getRecordService()->getRepository($table);
+						foreach ($recs as $record) {
+							$recordRepository->registerId($record['uid']);
+							$recordRepository->registerId($record['t3ver_oid']);
+						}
+					}
 					$output[$table] = $recs;
 				}
 			}
 		}
+
 		return $output;
 	}
 
@@ -293,7 +301,7 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 		// Select all records from this table in the database from the workspace
 		// This joins the online version with the offline version as tables A and B
 		// Order by UID, mostly to have a sorting in the backend overview module which doesn't "jump around" when swapping.
-		$res = $GLOBALS['TYPO3_DB']->exec_SELECTgetRows($fields, $from, $where, '', 'B.uid');
+		$res = $GLOBALS['TYPO3_DB']->exec_SELECTgetRows($fields, $from, $where, '', 'A.uid');
 		return is_array($res) ? $res : array();
 	}
 
@@ -421,7 +429,7 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 		$permittedElements = array();
 		if (is_array($recs)) {
 			foreach ($recs as $rec) {
-				$page = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord('pages', $rec[$checkField], 'uid,pid,perms_userid,perms_user,perms_groupid,perms_group,perms_everybody');
+				$page = self::getPageRepository()->findById($rec[$checkField]);
 				if ($GLOBALS['BE_USER']->doesUserHaveAccess($page, 1) && $this->isLanguageAccessibleForCurrentUser($table, $rec)) {
 					$permittedElements[] = $rec;
 				}
@@ -489,7 +497,7 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 				$isNewPage = (int) $row['t3ver_state'] === 1;
 			}
 		} else {
-			$rec = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord('pages', $id, 't3ver_state');
+			$rec = self::getPageRepository()->findById($id);
 			if (is_array($rec)) {
 				$isNewPage = (int) $rec['t3ver_state'] === 1;
 			}
@@ -508,10 +516,11 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 	 * @return string
 	 */
 	static public function viewSingleRecord($table, $uid, array $liveRecord = NULL, array $versionRecord = NULL) {
+		return '';
 		$viewUrl = '';
 
 		if ($table == 'pages') {
-			$liveRecord = \TYPO3\CMS\Backend\Utility\BackendUtility::getLiveVersionOfRecord('pages', $uid);
+			$liveRecord = self::getPageRepository()->getLiveVersion($uid);
 			$additionalParameters = '&tx_workspaces_web_workspacesworkspaces[previewWS]=' . $versionRecord['t3ver_wsid'];
 			$viewUrl = self::getWorkspaceService()->getPreviewLink($liveRecord['uid'], $additionalParameters);
 		} elseif ($table === 'pages_language_overlay' || $table === 'tt_content') {
@@ -575,8 +584,7 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 	public function canCreatePreviewLink($pageUid, $workspaceUid) {
 		$result = TRUE;
 		if ($pageUid > 0 && $workspaceUid > 0) {
-			$pageRecord = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord('pages', $pageUid);
-			\TYPO3\CMS\Backend\Utility\BackendUtility::workspaceOL('pages', $pageRecord, $workspaceUid);
+			$pageRecord = $this->getPageRepository()->getWorkspaceOverlay($pageUid, $workspaceUid);
 			if (!\TYPO3\CMS\Core\Utility\GeneralUtility::inList($GLOBALS['TYPO3_CONF_VARS']['FE']['content_doktypes'], $pageRecord['doktype'])) {
 				$result = FALSE;
 			}
@@ -643,7 +651,7 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 	 */
 	public function getLivePageUid($uid) {
 		if (!isset($this->pageCache[$uid])) {
-			$pageRecord = \TYPO3\CMS\Backend\Utility\BackendUtility::getRecord('pages', $uid);
+			$pageRecord = $this->getPageRepository()->findById($uid);
 			if (is_array($pageRecord)) {
 				$this->pageCache[$uid] = $pageRecord['t3ver_oid'] ? $pageRecord['t3ver_oid'] : $uid;
 			} else {
@@ -659,6 +667,24 @@ class WorkspaceService implements \TYPO3\CMS\Core\SingletonInterface {
 	protected function getWorkspaceRepository() {
 		return \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(
 			'TYPO3\\CMS\\Workspaces\\Record\\Repository\\WorkspaceRepository'
+		);
+	}
+
+	/**
+	 * @return \TYPO3\CMS\Workspaces\Record\Repository\PageRepository
+	 */
+	static protected function getPageRepository() {
+		return \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(
+			'TYPO3\\CMS\\Workspaces\\Record\\Repository\\PageRepository'
+		);
+	}
+
+	/**
+	 * @return \TYPO3\CMS\Workspaces\Service\RecordService
+	 */
+	protected function getRecordService() {
+		return \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(
+			'TYPO3\\CMS\\Workspaces\\Service\\RecordService'
 		);
 	}
 
