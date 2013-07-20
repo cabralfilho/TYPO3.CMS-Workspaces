@@ -186,6 +186,13 @@ class EditDocumentController {
 	 */
 	public $localizationMode;
 
+	/**
+	 * Workspace used for the editing action.
+	 *
+	 * @var NULL|integer
+	 */
+	protected $workspace;
+
 	// Internal, static:
 	/**
 	 * document template object
@@ -362,6 +369,7 @@ class EditDocumentController {
 		$this->doSave = \TYPO3\CMS\Core\Utility\GeneralUtility::_GP('doSave');
 		$this->returnEditConf = \TYPO3\CMS\Core\Utility\GeneralUtility::_GP('returnEditConf');
 		$this->localizationMode = \TYPO3\CMS\Core\Utility\GeneralUtility::_GP('localizationMode');
+		$this->workspace = \TYPO3\CMS\Core\Utility\GeneralUtility::_GP('workspace');
 		$this->uc = \TYPO3\CMS\Core\Utility\GeneralUtility::_GP('uc');
 		// Setting override values as default if defVals does not exist.
 		if (!is_array($this->defVals) && is_array($this->overrideVals)) {
@@ -392,6 +400,11 @@ class EditDocumentController {
 		// Anyways I can't figure out when this situation here will apply...
 		if (is_array($this->R_URL_getvars) && count($this->R_URL_getvars) < 2 && !is_array($this->editconf)) {
 			$this->setDocument($this->docDat[1]);
+		}
+
+		// Sets a temporary workspace, this request is based on
+		if ($this->workspace !== NULL) {
+			$this->getBackendUser()->setTemporaryWorkspace($this->workspace);
 		}
 	}
 
@@ -1343,7 +1356,7 @@ class EditDocumentController {
 	 * @todo Define visibility
 	 */
 	public function compileStoreDat() {
-		$this->storeArray = \TYPO3\CMS\Core\Utility\GeneralUtility::compileSelectedGetVarsFromArray('edit,defVals,overrideVals,columnsOnly,disHelp,noView,editRegularContentFromId', $this->R_URL_getvars);
+		$this->storeArray = \TYPO3\CMS\Core\Utility\GeneralUtility::compileSelectedGetVarsFromArray('edit,defVals,overrideVals,columnsOnly,disHelp,noView,editRegularContentFromId,workspace', $this->R_URL_getvars);
 		$this->storeUrl = \TYPO3\CMS\Core\Utility\GeneralUtility::implodeArrayForUrl('', $this->storeArray);
 		$this->storeUrlMd5 = md5($this->storeUrl);
 	}
@@ -1430,6 +1443,13 @@ class EditDocumentController {
 			}
 		}
 		\TYPO3\CMS\Core\Utility\HttpUtility::redirect($retUrl);
+	}
+
+	/**
+	 * @return \TYPO3\CMS\Core\Authentication\BackendUserAuthentication
+	 */
+	protected function getBackendUser() {
+		return $GLOBALS['BE_USER'];
 	}
 
 }

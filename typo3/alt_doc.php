@@ -44,6 +44,7 @@ $GLOBALS['LANG']->includeLLFile('EXT:lang/locallang_alt_doc.xml');
  */
 require_once \TYPO3\CMS\Core\Utility\ExtensionManagementUtility::extPath('backend') . 'Classes/Controller/EditDocumentController.php';
 // Make instance:
+/* @var $SOBE \TYPO3\CMS\Backend\Controller\EditDocumentController */
 $SOBE = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Backend\\Controller\\EditDocumentController');
 // Preprocessing, storing data if submitted to
 $SOBE->preInit();
