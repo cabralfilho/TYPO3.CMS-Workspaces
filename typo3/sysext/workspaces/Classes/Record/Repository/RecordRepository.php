@@ -133,11 +133,17 @@ class RecordRepository {
 
 		foreach ($tcaControlKeys as $tcaControlKey) {
 			if (!empty($GLOBALS['TCA'][$this->tableName]['ctrl'][$tcaControlKey])) {
+				$tcaControlProperty = $GLOBALS['TCA'][$this->tableName]['ctrl'][$tcaControlKey];
+
+				if ($tcaControlKey === 'type' && strpos($tcaControlProperty, ':') !== FALSE) {
+					$tcaControlProperty = substr($tcaControlProperty, 0, strpos($tcaControlProperty, ':'));
+				}
+
 				$fields = array_merge(
 					$fields,
 					\TYPO3\CMS\Core\Utility\GeneralUtility::trimExplode(
 						',',
-						$GLOBALS['TCA'][$this->tableName]['ctrl'][$tcaControlKey],
+						$tcaControlProperty,
 						TRUE
 					)
 				);
